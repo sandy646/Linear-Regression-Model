@@ -1,0 +1,93 @@
+---
+title: "Linear Regression Model"
+author: "Sandeep Singh"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+  html_document:
+    df_print: paged
+    toc: yes
+---
+
+
+### Univariate Model
+```{r}
+library(psych)
+
+###Univariate or simple Regression using only one predictor.
+
+nba_df <- read.csv("nba.csv", header = TRUE, sep = ",") # Reading file and creating data frame
+
+nba_model  = lm(formula = PTS ~ FG, data = nba_df) # Training model using one predictor FG(Field Goals). PTS is response variable.
+summary(nba_model) #Printing summary of model created
+
+###It is a good model because it has high variance. Intercept FG has high t-value and very low pr value(probability). Also the variable FG has high significance(***) in predicting the response variable.
+```
+### Plotting and dividing dataset
+```{r}
+###Plotting between the predictor and the response variable.
+
+plot(nba_df$FG, nba_df$PTS, xlab = "Field Goals Attempted", ylab = "Points Scored", main = "Goals Attempted and Points Scored")
+abline(nba_model)
+
+#dividing dataset into 2 parts train and test for multiple or multivariate regression.
+set.seed(1122)
+index <- sample(1:nrow(nba_df), 250) # randomly picking 250 indexes from data frame
+train <- nba_df[index, ] # assigning picked indexes to train set
+test <- nba_df[-index, ] # assigning remaining indexes to test set
+```
+
+###Correlation 
+```{r}
+#Plotting correlation of important predictors with response variable
+
+regressors_picked <- subset(train, select = c(FG,X3P,FT,MIN,PTS)) #Choosing important predictors.
+pairs.panels(regressors_picked) # Plotting correlation
+
+```
+### Multiple Regression
+```{r}
+#Multiple Regression - 
+#Selected 3 significant predictors for training model.
+
+new_model = lm(formula = PTS ~ FG + X3P + FTA , data = train)
+summary(new_model) # printing summary of trained model.
+
+confint(new_model, level = 0.95) # setting confidence interval of model equal to 95%.
+
+###It has high R sqaure value i.e model fits the data properly. Also it has high F-statistic and t-value. All the predictors are highly significant(***)
+```
+
+### Residuals Graph
+```{r}
+#Plotting the graph of the residuals.
+plot(new_model$fitted.values, new_model$residuals, xlab = "fitted values", ylab = "residuals")
+abline(0,0)
+
+```
+### Residuals Histogram
+```{r}
+# Plotting histogram of residuals
+hist(new_model$residuals, xlab = "residuals", main = "Histogram of residuals", col = "red")
+```
+### Prediction
+```{r}
+#Finding how many values match from our test dataset by supplying test dataset to our trained model.
+predicted_val<- predict.lm(new_model, test, interval="prediction")
+verify_values <- data.frame(predicted_values=as.integer(predicted_val[,1]), actual_values=test$PTS)
+exact_matches <- verify_values$predicted_values == verify_values$actual_values
+sprintf("No of exact matches with predicted are %i", sum(exact_matches))
+```
+### RSS, TSS, RSE
+```{r}
+#Calculating Residual Sum of Squares(RSS), Total Sum of Sqaures(TSS), F-Statistic, Residual Standard Error(RSE)
+n <- dim(train)[1]
+p <- dim(train)[2] - 1
+RSS  <- sum((test$PTS - predicted_val[,1])^2)
+RSE  <- sqrt(1/(n-p-1)*RSS)
+TSS  <- sum((test$PTS - mean(test$PTS))^2)
+F    <- ((TSS - RSS)/3)/(RSS/(n-p-1))
+R.sq <- cor(test$PTS, predicted_val[,1] )^2
+sprintf("RSS - %f , TSS - %f , F-statistic - %f , RSE - %f",RSS,TSS, F,  RSE, R.sq)
+```
